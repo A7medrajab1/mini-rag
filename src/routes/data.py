@@ -1,0 +1,66 @@
+from fastapi import APIRouter, UploadFile, Depends, status
+from fastapi.responses import JSONResponse
+
+from helpers.config import get_settings, Settings
+from controllers import DataController, ProjectController
+import aiofiles
+import os
+import logging
+
+logger = logging.getLogger("uvicorn.error")
+
+data_router = APIRouter(
+    prefix="/data",
+    tags=["data"]
+)
+
+
+@data_router.post("/upload/{project_id}")
+async def upload_data(
+    project_id: str,
+    file: UploadFile,
+    app_settings: Settings = Depends(get_settings)
+):
+
+    data_controller = DataController()
+
+    is_valid = data_controller.validate_file_extension(file=file)
+
+    if not is_valid:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "message": "Invalid file type or size."
+            }
+        )
+
+
+    project_controller = ProjectController()
+    project_dir_path = project_controller.get_project_path(project_id=project_id)
+    # file_path = os.path.join(project_dir_path, file.filename)
+    file_path = data_controller.generate_file_name(original_filename=file.filename, project_id=project_id)
+
+    try:
+        async with aiofiles.open(file_path, 'wb') as f:
+            while chunk := await file.read(app_settings.FILE_DEFAULT_CHUNK_SIZE):
+                await f.write(chunk)
+    except Exception as e:
+        logger.error(f"Error while uploading file: {str(e)}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "message": f"Failed to upload file: {str(e)}"
+            }
+        )
+
+
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "message": f"Data uploaded for project {project_id}"
+        }
+    )
+    return {
+        "message": f"Data uploaded for project {project_id}"
+    }
