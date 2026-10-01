@@ -10,6 +10,7 @@ dependencies = [
     "uvicorn[standard]>=0.52.4,<0.53",
     "pydantic-settings>=2.15.0,<2.16",
     "python-multipart>=0.0.32,<0.1",
+    "aiofiles",
 ]
 
 [dependency-groups]
