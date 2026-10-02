@@ -33,8 +33,8 @@ class DataController(BaseController):
         while os.path.exists(new_file_path):
             random_file_name = self.generate_file_name(original_filename, project_id)
             new_file_path = os.path.join(prject_path, f"{random_file_name}_{clean_filename}")
-        return new_file_path
+        return new_file_path, random_file_name + "_" + clean_filename
     
     def get_clean_file_name(self, original_filename: str):
         clean_filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', original_filename)
-        return clean_filename, random_file_name + "_" + clean_filename
+        return clean_filename
