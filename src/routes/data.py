@@ -6,6 +6,7 @@ from controllers import DataController, ProjectController
 import aiofiles
 import os
 import logging
+from .schemes.data import ProcessRequest
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -60,5 +61,18 @@ async def upload_data(
         content={
             "message": f"Data uploaded for project {project_id}",
             "file_id": file_id,
+        }
+    )
+
+@data_router.post("/process/{project_id}")
+async def process_endpoint(project_id: str, process_request: ProcessRequest):
+    data_controller = DataController()
+    file_id = process_request.file_id
+    chunk_size = process_request.chunk_size
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "message": f"Processing data for file_id {file_id} with chunk_size {chunk_size}, overlap_size {process_request.overlap_size}, do_reset {process_request.do_reset}"
         }
     )
