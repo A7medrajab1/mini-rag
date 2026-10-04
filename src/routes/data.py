@@ -1,8 +1,7 @@
 from fastapi import APIRouter, UploadFile, Depends, status
 from fastapi.responses import JSONResponse
-
 from helpers.config import get_settings, Settings
-from controllers import DataController, ProjectController
+from controllers import DataController, ProjectController, ProcessController
 import aiofiles
 import os
 import logging
@@ -67,12 +66,34 @@ async def upload_data(
 @data_router.post("/process/{project_id}")
 async def process_endpoint(project_id: str, process_request: ProcessRequest):
     data_controller = DataController()
+    # params from the request
     file_id = process_request.file_id
     chunk_size = process_request.chunk_size
+    overlap_size = process_request.overlap_size
+    do_reset = process_request.do_reset
 
+    process_controller = ProcessController(project_id=project_id)
+    # file_content = process_controller.get_file_content(file_id=file_id)
+    file_chunks = process_controller.process_file_content(
+        # file_content=file_content,
+        file_id=file_id,
+        chunk_size=chunk_size,
+        overlap_size=overlap_size,
+        do_reset=do_reset
+    )
+
+    if not file_chunks:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "message": f"No chunks were created for file_id {file_id}. Please check the file content and parameters."
+            }
+        )
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
+            "content": file_chunks[10].page_content,
+            "metadata": file_chunks[10].metadata,
             "message": f"Processing data for file_id {file_id} with chunk_size {chunk_size}, overlap_size {process_request.overlap_size}, do_reset {process_request.do_reset}"
         }
     )
