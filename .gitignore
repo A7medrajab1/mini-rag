@@ -28,6 +28,7 @@ Thumbs.db
 # Local data
 data/
 *.db
+docker/mongodb_data/
 
 # Model / ML artifacts
 models/

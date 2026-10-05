@@ -9,12 +9,15 @@ class Settings(BaseSettings):
     ALLOWED_FILE_TYPES: list[str]
     FILE_MAX_SIZE_MB: int
     FILE_DEFAULT_CHUNK_SIZE: int
+    # MONGO DB SETTINGS
+    MONGO_URL: str
+    MONGO_DB_NAME: str
 
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        settings_config_dict = SettingsConfigDict
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+    )
 
 
 def get_settings() -> Settings:
