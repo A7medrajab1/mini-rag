@@ -31,7 +31,7 @@ data/
 docker/mongodb_data/
 
 # Model / ML artifacts
-models/
+# models/
 artifacts/
 
 # Secrets
