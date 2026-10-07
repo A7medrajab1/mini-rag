@@ -1,20 +1,15 @@
 from typing import Optional
-
 from bson import ObjectId
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class Project(BaseModel):
-    _id: Optional[ObjectId] = None
-
+    id: Optional[ObjectId] = Field(default=None, alias="_id")
     project_id: str
-
-    name: Optional[str] = Field(
-        default=None,
-        min_length=1
-    )
-
+    name: Optional[str] = Field(default=None, min_length=1)
     description: Optional[str] = None
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        populate_by_name=True
+    )
