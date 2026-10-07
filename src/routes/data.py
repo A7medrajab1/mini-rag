@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, Depends, status
+from fastapi import APIRouter, UploadFile, Depends, status, Request
 from fastapi.responses import JSONResponse
 from helpers.config import get_settings, Settings
 from controllers import DataController, ProjectController, ProcessController
@@ -6,6 +6,7 @@ import aiofiles
 import os
 import logging
 from .schemes.data import ProcessRequest
+from models.ProjectModel import ProjectModel
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -17,10 +18,19 @@ data_router = APIRouter(
 
 @data_router.post("/upload/{project_id}")
 async def upload_data(
+    request: Request,
     project_id: str,
     file: UploadFile,
     app_settings: Settings = Depends(get_settings)
 ):
+
+    project_model = ProjectModel(
+        db_client=request.app.db
+    )
+
+    project = await project_model.get_project_or_create_one(
+        project_id=project_id
+    )
 
     data_controller = DataController()
 
@@ -52,7 +62,6 @@ async def upload_data(
                 "message": f"Failed to upload file: {str(e)}"
             }
         )
-
 
 
     return JSONResponse(

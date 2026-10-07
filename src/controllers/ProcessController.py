@@ -5,7 +5,7 @@ from .ProjectController import ProjectController
 import re
 import os
 from typing import List
-from models import ProcessingEnum
+from models.enums.ProcessingEnum import ProcessingEnum
 from langchain_community.document_loaders import TextLoader
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
