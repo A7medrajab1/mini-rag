@@ -53,7 +53,7 @@ class ProcessController(BaseController):
         content_metadata = [doc.metadata for doc in documents]
         return content_metadata
 
-    def process_file_content(self, file_id: str, chunk_size: int, overlap_size: int, do_reset: int):
+    def process_file_content(self, file_id: str, chunk_size: int, overlap_size: int):
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=overlap_size,
