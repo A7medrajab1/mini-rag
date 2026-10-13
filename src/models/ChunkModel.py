@@ -16,6 +16,22 @@ class ChunkModel(BaseDataModel):
             DataBaseEnum.COLLECTION_CHUNK_NAME.value
         ]
 
+    @classmethod
+    async def create_instance(cls, db_client: object):
+        instance = cls(db_client)
+        await instance.init_collection()
+        return instance
+
+    async def init_collection(self):
+        indexes = DataChunk.get_indexes()
+
+        for index in indexes:
+            await self.collection.create_index(
+                index["key"],
+                name=index["name"],
+                unique=index["unique"]
+            )
+
     async def create_chunk(self, chunk: DataChunk):
 
         result = await self.collection.insert_one(
@@ -48,7 +64,7 @@ class ChunkModel(BaseDataModel):
             chunks,
             result.inserted_ids
         ):
-            chunk._id = inserted_id
+            chunk.id = inserted_id
 
         return chunks
 

@@ -13,3 +13,13 @@ class Project(BaseModel):
         arbitrary_types_allowed=True,
         populate_by_name=True
     )
+
+    @classmethod
+    def get_indexes(cls):
+        return [
+            {
+                "key": [("project_id", 1)],
+                "name": "project_id_unique_idx",
+                "unique": True,
+            }
+        ]

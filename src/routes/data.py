@@ -8,7 +8,11 @@ import logging
 from .schemes.data import ProcessRequest
 from models.ProjectModel import ProjectModel
 from models.ChunkModel import ChunkModel
+from models.AssetModel import AssetModel
 from models.db_schemes.DataChunk import DataChunk
+from models.db_schemes.Asset import Asset
+from models.enums.AssetTypeEnum import AssetTypeEnum
+
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -26,7 +30,7 @@ async def upload_data(
     app_settings: Settings = Depends(get_settings)
 ):
 
-    project_model = ProjectModel(
+    project_model = await ProjectModel.create_instance(
         db_client=request.app.db
     )
 
@@ -64,15 +68,31 @@ async def upload_data(
                 "message": f"Failed to upload file: {str(e)}"
             }
         )
+    
+    asset_model = await AssetModel.create_instance(
+        db_client=request.app.db
+    )
 
+    asset_resource = Asset(
+        asset_project_id=project.id,
+        asset_type=AssetTypeEnum.FILE.value,
+        asset_name=file_id,
+        asset_size=os.path.getsize(file_path)
+    )
+
+    asset_record = await asset_model.create_asset(
+        asset=asset_resource
+    )
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
             "message": f"Data uploaded for project {project_id}",
-            "file_id": file_id,
+            # "file_id": file_id,
+            "file_id": str(asset_record.id)
         }
     )
+    
 
 @data_router.post("/process/{project_id}")
 async def process_endpoint(
@@ -81,7 +101,7 @@ async def process_endpoint(
     process_request: ProcessRequest
 ):
 
-    project_model = ProjectModel(
+    project_model = await ProjectModel.create_instance(
         db_client=request.app.db
     )
 
@@ -89,7 +109,7 @@ async def process_endpoint(
         project_id=project_id
     )
 
-    chunk_model = ChunkModel(
+    chunk_model = await ChunkModel.create_instance(
         db_client=request.app.db
     )
 
@@ -106,7 +126,7 @@ async def process_endpoint(
         file_id=file_id,
         chunk_size=chunk_size,
         overlap_size=overlap_size,
-        do_reset=do_reset
+        # do_reset=do_reset
     )
 
     if not file_chunks:
