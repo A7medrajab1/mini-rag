@@ -57,13 +57,13 @@ class AssetModel(BaseDataModel):
 
         return assets
 
-    async def get_asset_by_name(
+    async def get_asset_record(
         self,
-        project_id: ObjectId,
+        asset_project_id: ObjectId,
         asset_name: str
     ):
         document = await self.collection.find_one({
-            "asset_project_id": project_id,
+            "asset_project_id": asset_project_id,
             "asset_name": asset_name
         })
 
@@ -71,6 +71,24 @@ class AssetModel(BaseDataModel):
             return None
 
         return Asset(**document)
+    
+    
+    async def get_all_project_assets(
+        self,
+        asset_project_id: ObjectId,
+        asset_type: str
+    ):
+        cursor = self.collection.find({
+            "asset_project_id": asset_project_id,
+            "asset_type": asset_type
+        })
+
+        assets = []
+
+        async for document in cursor:
+            assets.append(Asset(**document))
+
+        return assets
 
     async def delete_asset(self, asset_id: ObjectId):
         result = await self.collection.delete_one({

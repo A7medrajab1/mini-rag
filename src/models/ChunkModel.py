@@ -101,3 +101,15 @@ class ChunkModel(BaseDataModel):
         )
 
         return result.deleted_count
+    
+    async def delete_chunks_by_asset_id(
+        self,
+        asset_id: ObjectId,
+        project_id: ObjectId
+    ):
+        result = await self.collection.delete_many({
+            "chunk_asset_id": asset_id,
+            "chunk_project_id": project_id
+        })
+
+        return result.deleted_count
