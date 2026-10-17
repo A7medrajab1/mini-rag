@@ -4,6 +4,7 @@ from helpers.config import get_settings, Settings
 from controllers import DataController, ProjectController, ProcessController
 import aiofiles
 import os
+from bson import ObjectId
 import logging
 from .schemes.data import ProcessRequest
 from models.ProjectModel import ProjectModel
@@ -94,12 +95,17 @@ async def upload_data(
     )
     
 
+
+
 @data_router.post("/process/{project_id}")
 async def process_endpoint(
     request: Request,
     project_id: str,
     process_request: ProcessRequest
 ):
+    chunk_size = process_request.chunk_size
+    overlap_size = process_request.overlap_size
+    do_reset = process_request.do_reset
 
     project_model = await ProjectModel.create_instance(
         db_client=request.app.db
@@ -109,57 +115,118 @@ async def process_endpoint(
         project_id=project_id
     )
 
-    chunk_model = await ChunkModel.create_instance(
+    asset_model = await AssetModel.create_instance(
         db_client=request.app.db
     )
 
-    file_id = process_request.file_id
-    chunk_size = process_request.chunk_size
-    overlap_size = process_request.overlap_size
-    do_reset = process_request.do_reset
+    # Get one requested file, or all files in the project
+    if process_request.file_id:
+        asset_record = await asset_model.get_asset_record(
+            asset_project_id=project.id,
+            asset_name=process_request.file_id
+        )
+
+        if asset_record is None:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={"message": "File not found"}
+            )
+
+        project_files = [asset_record]
+
+    else:
+        project_files = await asset_model.get_all_project_assets(
+            asset_project_id=project.id,
+            asset_type=AssetTypeEnum.FILE.value
+        )
+
+    if not project_files:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"message": "No files found!"}
+        )
+
+    chunk_model = await ChunkModel.create_instance(
+        db_client=request.app.db
+    )
 
     process_controller = ProcessController(
         project_id=project_id
     )
 
-    file_chunks = process_controller.process_file_content(
-        file_id=file_id,
-        chunk_size=chunk_size,
-        overlap_size=overlap_size,
-        # do_reset=do_reset
-    )
+    # Reset chunks for the selected asset, or the entire project
+    if do_reset:
+        if process_request.file_id:
+            await chunk_model.delete_chunks_by_asset_id(
+                asset_id=project_files[0].id,
+                project_id=project.id
+            )
+        else:
+            await chunk_model.delete_chunks_by_project_id(
+                project_id=project.id
+            )
 
-    if not file_chunks:
+    total_chunks = 0
+    files_processed = 0
+
+    for asset in project_files:
+        try:
+            file_content = process_controller.get_file_content(
+                file_id=asset.asset_name
+            )
+
+            if not file_content:
+                logger.warning(
+                    f"No content found for {asset.asset_name}"
+                )
+                continue
+
+            file_chunks = process_controller.process_file_content(
+                file_content=file_content,
+                file_id=asset.asset_name,
+                chunk_size=chunk_size,
+                overlap_size=overlap_size
+            )
+
+            if not file_chunks:
+                continue
+
+            data_chunks = [
+                DataChunk(
+                    chunk_text=chunk.page_content,
+                    chunk_metadata=chunk.metadata,
+                    chunk_order=index + 1,
+                    chunk_project_id=project.id,
+                    chunk_asset_id=asset.id
+                )
+                for index, chunk in enumerate(file_chunks)
+            ]
+
+            await chunk_model.create_chunks(data_chunks)
+
+            total_chunks += len(data_chunks)
+            files_processed += 1
+
+        except FileNotFoundError:
+            logger.exception(
+                f"File not found on disk: {asset.asset_name}"
+            )
+            continue
+
+    if total_chunks == 0:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={
-                "message": f"No chunks were created for file_id {file_id}."
+                "message": "Processing failed: no chunks created"
             }
         )
-
-    if do_reset:
-        await chunk_model.delete_chunks_by_project_id(
-            project_id=project.id
-        )
-
-    data_chunks = [
-        DataChunk(
-            chunk_text=chunk.page_content,
-            chunk_metadata=chunk.metadata,
-            chunk_order=index + 1,
-            chunk_project_id=project.id
-        )
-        for index, chunk in enumerate(file_chunks)
-    ]
-
-    await chunk_model.create_chunks(data_chunks)
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
-            "message": f"Successfully created {len(data_chunks)} chunks.",
-            "file_id": file_id,
+            "message": f"Successfully created {total_chunks} chunks.",
             "project_id": project_id,
-            "chunks_count": len(data_chunks)
+            "files_processed": files_processed,
+            "chunks_count": total_chunks
         }
     )

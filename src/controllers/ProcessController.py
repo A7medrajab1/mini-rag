@@ -39,8 +39,16 @@ class ProcessController(BaseController):
             raise ValueError(f"Unsupported file type: {file_extension}")
     
     def get_file_content(self, file_id: str):
+        file_path = os.path.join(self.project_path, file_id)
+
+        if not os.path.isfile(file_path):
+            raise FileNotFoundError(
+                f"File not found: {file_path}"
+            )
+
         loader = self.get_file_loader(file_id=file_id)
         documents = loader.load()
+
         return documents
     
     def file_content_text(self, file_id: str):
@@ -53,16 +61,21 @@ class ProcessController(BaseController):
         content_metadata = [doc.metadata for doc in documents]
         return content_metadata
 
-    def process_file_content(self, file_id: str, chunk_size: int, overlap_size: int):
+    def process_file_content(self,file_content , file_id: str, chunk_size: int, overlap_size: int):
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=overlap_size,
             length_function=len,
         )
+        if not file_content:
+            return []
+
+        texts = [doc.page_content for doc in file_content]
+        metadatas = [doc.metadata for doc in file_content]
 
         chunks = text_splitter.create_documents(
-            self.file_content_text(file_id=file_id),
-            metadatas=self.file_content_metadata(file_id=file_id)
+            texts=texts,
+            metadatas=metadatas
         )
         # chunks = self.process_simpler_splitter(
         #     texts=self.file_content_text(file_id=file_id),
